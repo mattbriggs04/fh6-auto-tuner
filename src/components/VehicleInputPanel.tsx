@@ -231,6 +231,19 @@ function inputGuidance(mode: ModeConfig) {
     };
   }
 
+  if (mode.id === "drag") {
+    return {
+      ...shared,
+      weight: "Weight is one of the biggest drag variables. Less mass improves launch, acceleration, and shift recovery, but the build still needs enough rear tire and drivetrain strength to use the power.",
+      horsepower: "Horsepower matters more in drag than in any other mode, but only after the car can hook. If the launch spins, more power usually makes the time worse.",
+      drivetrain: "AWD gives the most repeatable launch. RWD can be faster when rear tire, power delivery, and gearing are good enough to leave cleanly.",
+      frontTireWidth: "Front width adds drag and PI without helping launch much. Drag builds usually keep the front narrower unless AWD traction or stability needs it.",
+      rearTireWidth: "Rear width is launch grip. RWD drag builds usually want as much rear tire as the chassis allows; AWD still benefits from rear support under squat.",
+      weightDistribution: "Front percentage affects launch transfer. More rear load helps traction, but too little front stability can make the car wander at high speed.",
+      tireType: "Drag tires are the target compound for launch grip. Slicks can work when drag tires are unavailable or PI-limited; avoid rally/offroad/snow unless the event requires them."
+    };
+  }
+
   return {
     ...shared,
     weight: "Weight drives the spring, damping, and power-target baselines. Heavier street cars need more support for braking and cornering, but they usually reach the point of diminishing returns on horsepower sooner.",

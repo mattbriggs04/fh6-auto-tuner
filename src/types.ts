@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
-export type ModeId = "street" | "drift" | "offroad" | "rally";
+export type ModeId = "street" | "drift" | "offroad" | "rally" | "drag";
 export type Drivetrain = "FWD" | "RWD" | "AWD";
 export type TireType = "street" | "sport" | "semi-slick" | "slick" | "drift" | "rally" | "offroad" | "snow" | "drag";
 export type PerformanceClass = "D" | "C" | "B" | "A" | "S1" | "S2" | "R";

@@ -1,4 +1,4 @@
-import { Gauge, Mountain, RotateCcw, Route } from "lucide-react";
+import { Gauge, Mountain, RotateCcw, Route, Timer } from "lucide-react";
 import type { ModeConfig, ModeId } from "../types";
 
 export const modes: Record<ModeId, ModeConfig> = {
@@ -89,7 +89,29 @@ export const modes: Record<ModeId, ModeConfig> = {
       tireType: "rally",
       showAdvanced: false
     }
+  },
+  drag: {
+    id: "drag",
+    title: "Drag Tune",
+    route: "/drag",
+    cardTitle: "Drag Tune",
+    philosophy: "A drag build is launch engineering: maximize tire bite, torque delivery, shift recovery, and straight-line stability over everything else.",
+    accent: "#ef4444",
+    accentSoft: "rgba(239, 68, 68, 0.15)",
+    image: "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=2200&q=88",
+    icon: Timer,
+    defaultInputs: {
+      performanceClass: "S2",
+      weightKg: 1500,
+      horsepower: 950,
+      drivetrain: "AWD",
+      tireWidthFront: 225,
+      tireWidthRear: 345,
+      frontWeightPercent: 52,
+      tireType: "drag",
+      showAdvanced: false
+    }
   }
 };
 
-export const modeList = [modes.street, modes.drift, modes.offroad, modes.rally] as ModeConfig[];
+export const modeList = [modes.street, modes.drift, modes.offroad, modes.rally, modes.drag] as ModeConfig[];

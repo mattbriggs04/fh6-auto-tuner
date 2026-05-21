@@ -88,6 +88,17 @@ const modeModel: Record<ModeId, {
     rideHeight: "Medium-high",
     rideHeightDetail: "Enough travel for crests and ruts, low enough to settle on mixed asphalt.",
     aeroRearBase: 54
+  },
+  drag: {
+    spring: 0.16,
+    frontSpringBias: 0.92,
+    rearSpringBias: 1.08,
+    rebound: 0.68,
+    compression: 0.56,
+    hpPer1000Lb: [260, 460],
+    rideHeight: "Low and stable",
+    rideHeightDetail: "Keep the car low enough to reduce drag, but not so low that launch squat or bumps unsettle it.",
+    aeroRearBase: 50
   }
 };
 
@@ -104,6 +115,14 @@ function dampingFromSpring(springRate: number, multiplier: number) {
 }
 
 function tirePressureBaseline(mode: ModeId, tireType: TireType, drivetrain: Drivetrain) {
+  if (mode === "drag") {
+    if (drivetrain === "RWD") {
+      return { front: 34, rear: 24 };
+    }
+
+    return { front: 27, rear: 25 };
+  }
+
   const baseByTire: Record<TireType, [number, number]> = {
     street: [31, 31],
     sport: [31.5, 31.5],
@@ -139,6 +158,18 @@ function tirePressureBaseline(mode: ModeId, tireType: TireType, drivetrain: Driv
 }
 
 function gearingRecommendations(mode: ModeId, performanceClass: PerformanceClass) {
+  if (mode === "drag") {
+    return {
+      finalDrive: "Strip length matched",
+      first: "Longest clean launch",
+      second: "Powerband recovery",
+      third: "Main acceleration",
+      fourth: performanceClass === "R" || performanceClass === "S2" ? "Finish gear" : "Long strip gear",
+      fifth: "Roll / long strip",
+      sixth: "Overrun only"
+    };
+  }
+
   if (mode === "drift") {
     return {
       finalDrive: "Longer than grip tune",
@@ -187,6 +218,16 @@ function gearingRecommendations(mode: ModeId, performanceClass: PerformanceClass
 }
 
 function alignmentRecommendations(mode: ModeId) {
+  if (mode === "drag") {
+    return {
+      camberFront: "0.0 deg",
+      camberRear: "0.0 deg",
+      toeFront: "0.0 deg",
+      toeRear: "0.0 deg",
+      caster: "5.0 deg"
+    };
+  }
+
   if (mode === "drift") {
     return {
       camberFront: "-4.0 deg",
@@ -229,6 +270,10 @@ function alignmentRecommendations(mode: ModeId) {
 function arbRecommendations(mode: ModeId, performanceClass: PerformanceClass) {
   const classAdd = performanceClass === "S2" || performanceClass === "R" ? 4 : performanceClass === "S1" ? 2 : 0;
 
+  if (mode === "drag") {
+    return { front: 8 + classAdd, rear: 24 + classAdd };
+  }
+
   if (mode === "drift") {
     return { front: 24 + classAdd, rear: 30 + classAdd };
   }
@@ -245,6 +290,10 @@ function arbRecommendations(mode: ModeId, performanceClass: PerformanceClass) {
 }
 
 function rideHeightSplit(mode: ModeId) {
+  if (mode === "drag") {
+    return { front: "Low", rear: "Low + squat reserve" };
+  }
+
   if (mode === "offroad") {
     return { front: "High", rear: "High + 1 step" };
   }
@@ -261,6 +310,10 @@ function rideHeightSplit(mode: ModeId) {
 }
 
 function brakeRecommendations(mode: ModeId, drivetrain: Drivetrain) {
+  if (mode === "drag") {
+    return { balance: "60% front", pressure: "90%" };
+  }
+
   if (mode === "drift") {
     return { balance: "55% front", pressure: "105%" };
   }
@@ -281,6 +334,36 @@ function brakeRecommendations(mode: ModeId, drivetrain: Drivetrain) {
 }
 
 function differentialTuneValues(mode: ModeId, drivetrain: Drivetrain) {
+  if (mode === "drag") {
+    if (drivetrain === "FWD") {
+      return {
+        frontAccel: "95%",
+        frontDecel: "0%",
+        rearAccel: "N/A",
+        rearDecel: "N/A",
+        center: "N/A"
+      };
+    }
+
+    if (drivetrain === "RWD") {
+      return {
+        frontAccel: "N/A",
+        frontDecel: "N/A",
+        rearAccel: "100%",
+        rearDecel: "0%",
+        center: "N/A"
+      };
+    }
+
+    return {
+      frontAccel: "80%",
+      frontDecel: "0%",
+      rearAccel: "100%",
+      rearDecel: "0%",
+      center: "70% rear"
+    };
+  }
+
   if (drivetrain === "FWD") {
     return {
       frontAccel: mode === "street" ? "35%" : "30%",
@@ -599,6 +682,26 @@ export function getClassOptimization(mode: ModeId, performanceClass: Performance
     );
   }
 
+  if (mode === "drag") {
+    const dragTires: TireType[] = performanceClass === "D" || performanceClass === "C"
+      ? ["sport", "drag"]
+      : ["drag", "slick"];
+
+    return classOptimizationResult(
+      performanceClass,
+      dragTires,
+      performanceClass === "D" || performanceClass === "C"
+        ? "Low classes may not have enough power to justify a full drag compound, but drag tires are the target once launch traction becomes the limiter."
+        : "Drag tires are the primary launch compound. Slicks are the backup if drag tires are unavailable or PI does not cooperate.",
+      ["Drag tires", "Maximum rear width", "Weight reduction", "Race transmission", "Race differential", "Power after launch grip"],
+      "AWD is the consistency pick when the car struggles to launch. RWD can be faster when it has enough rear tire and power delivery is clean.",
+      performanceClass === "S2" || performanceClass === "R"
+        ? "Race transmission with more gears can keep extreme engines in the powerband, but avoid unnecessary shifts before the finish."
+        : "Tune first gear for launch, then tune only the gears used before the finish line.",
+      "Do not spend PI on cornering parts that do not help launch, shift recovery, or straight-line stability."
+    );
+  }
+
   const driftTires: TireType[] = performanceClass === "D" || performanceClass === "C"
     ? ["street", "sport"]
     : performanceClass === "B"
@@ -665,6 +768,14 @@ function whyThisWorks(mode: ModeId, inputs: VehicleInputs, targetMin: number, ta
     ];
   }
 
+  if (mode === "drag") {
+    return [
+      powerNote,
+      "The setup prioritizes longitudinal grip, shift recovery, and straight-line stability instead of cornering balance.",
+      "Rear tire width, low rear pressure, and locked acceleration diff behavior help the car leave harder without wasting power in wheelspin."
+    ];
+  }
+
   return [
     powerNote,
     `The ${inputs.drivetrain} baseline balances entry stability with exit drive, then uses aero and diff settings to tune rotation at speed.`,
@@ -698,6 +809,38 @@ function tuningGuidance(mode: ModeId, inputs: VehicleInputs) {
   };
 
   if (mode !== "drift") {
+    if (mode === "drag") {
+      return [
+        {
+          title: "Drag launch",
+          summary: "The launch is the tune. Fix first gear and tire bite before chasing top speed.",
+          points: [
+            "If the car spins immediately, lengthen first gear or lower rear pressure slightly until wheelspin is controlled.",
+            "If it bogs or falls out of boost, shorten first gear in small steps and retest the same strip.",
+            "Use AWD when repeatable launches matter more than preserving RWD character."
+          ]
+        },
+        {
+          title: "Drag gearing",
+          summary: "Tune only the gears used before the finish line, then leave extra gears for roll races or longer strips.",
+          points: [
+            "The car should cross the finish near the top of the final used gear, not mid-shift and not bouncing limiter.",
+            "Avoid unnecessary shifts; one fewer shift can be faster than a theoretically perfect ratio spread.",
+            "For very high-power builds, use enough gears to stay in the powerband without turning the run into constant shifting."
+          ]
+        },
+        {
+          title: "Drag tires and width",
+          summary: "Drag tires and rear width are the first upgrades to solve before adding more power.",
+          points: [
+            "Use drag tires when available; use slicks only when drag tires are unavailable or PI-constrained.",
+            "RWD builds usually want maximum rear width and less front width to save PI and drag.",
+            "AWD builds can use more balanced tire width, but still need enough rear support for launch squat."
+          ]
+        }
+      ];
+    }
+
     return [tirePressure, gearing];
   }
 
@@ -786,6 +929,28 @@ function issueFixes(mode: ModeId) {
       {
         issue: "AWD push on throttle",
         fix: "Lower front diff accel or move the center diff farther rearward."
+      },
+      ...common
+    ];
+  }
+
+  if (mode === "drag") {
+    return [
+      {
+        issue: "Spins off the line",
+        fix: "Lengthen first gear, lower rear tire pressure slightly, add rear tire width, or use AWD if the chassis cannot hook."
+      },
+      {
+        issue: "Bogs on launch",
+        fix: "Shorten first gear in small steps, reduce launch RPM, or use gearing that lands the engine in its torque band."
+      },
+      {
+        issue: "Loses time on shifts",
+        fix: "Reduce the number of used gears or tighten only the gears needed before the finish line."
+      },
+      {
+        issue: "Wanders at high speed",
+        fix: "Add rear aero if available, zero toe, stabilize ride height, and avoid excessive front lift."
       },
       ...common
     ];

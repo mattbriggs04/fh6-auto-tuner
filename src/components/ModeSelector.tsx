@@ -11,7 +11,7 @@ type ModeSelectorProps = {
 export function ModeSelector({ modes, onSelect }: ModeSelectorProps) {
   return (
     <motion.div
-      className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+      className="grid gap-4 md:grid-cols-2 xl:grid-cols-5"
       initial="hidden"
       animate="show"
       variants={{
