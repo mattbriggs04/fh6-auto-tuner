@@ -6,6 +6,7 @@ const tireGrip: Record<TireType, number> = {
   street: 0.93,
   sport: 1,
   "semi-slick": 1.1,
+  drift: 1.02,
   rally: 1.03,
   offroad: 1.06
 };
@@ -143,6 +144,67 @@ function whyThisWorks(mode: ModeId, inputs: VehicleInputs, targetMin: number, ta
   ];
 }
 
+function tuningGuidance(mode: ModeId, inputs: VehicleInputs) {
+  const tirePressure = {
+    title: "Tire pressure",
+    summary: "Set pressure by testing heat, feel, and the problem you are trying to solve rather than chasing a universal number.",
+    points: [
+      "Lower pressure on the axle that needs more grip or feels nervous; raise pressure on the axle that feels sluggish, vague, or too planted.",
+      "Make small changes, run the same route again, and watch whether the car improves on entry, mid-corner, or exit.",
+      mode === "offroad" || mode === "rally"
+        ? "Rougher surfaces usually prefer a softer tire feel; go firmer only when the car feels delayed or rolls over the tire."
+        : "For pavement, use telemetry and warm-lap feel: the tire should respond cleanly without overheating or feeling glassy."
+    ]
+  };
+
+  const gearing = {
+    title: "Gearing ratios",
+    summary: "Tune the final drive around the route first, then adjust individual gears only when a specific gear is wrong.",
+    points: [
+      "If the car hits limiter before the useful part of a straight or drift zone ends, lengthen the final drive or that gear.",
+      "If the car bogs after a shift, lands below boost, or cannot recover after a slide, shorten the final drive or tighten the gap.",
+      mode === "offroad" || mode === "rally"
+        ? "Favor recovery and acceleration out of slow loose corners over top speed unless the route has long open sections."
+        : "Top gear should be useful on the fastest part of the route; unused top speed is usually wasted acceleration."
+    ]
+  };
+
+  if (mode !== "drift") {
+    return [tirePressure, gearing];
+  }
+
+  return [
+    {
+      title: "Drift tire compound",
+      summary: "Drift tires are a strong default, but they are not mandatory for every drift car.",
+      points: [
+        "Use drift tires when the car has enough power to keep wheel speed alive and you want predictable angle control.",
+        "Try sport or street tires when drift compound feels too grippy, the car keeps straightening, or a lower-power build cannot stay sideways.",
+        "Avoid jumping straight to very high-grip race-style tires unless the car has the power, steering angle, and gearing to overcome them."
+      ]
+    },
+    tirePressure,
+    {
+      title: "Drift gearing",
+      summary: "Build the transmission around the gear or two you actually drift in, not the highest speed shown in the graph.",
+      points: [
+        "Pick the main drift gear, then adjust final drive so that gear holds wheel speed without bouncing limiter through the zone.",
+        "Lengthen the active gear if the car runs out of RPM while angle is still building; shorten it if throttle input does not spin the tires back up.",
+        "Keep the next gear close enough that upshifts do not drop the engine out of its useful torque or boost range."
+      ]
+    },
+    {
+      title: "Drift diff vs race diff",
+      summary: "Use the differential part that matches how much control you want over lock behavior.",
+      points: [
+        "Use a drift differential when you want a simple, consistent locked feel for angle, lower-power cars, learning, or point drifting.",
+        "Use a race differential when you want finer accel/decel tuning, smoother transitions, or a car that still needs to behave outside drift zones.",
+        `With ${inputs.drivetrain}, reduce lock if the car only spins tires or pushes straight; add lock if one tire lights up or the car will not hold angle.`
+      ]
+    }
+  ];
+}
+
 function issueFixes(mode: ModeId) {
   const common = [
     {
@@ -247,10 +309,11 @@ export function generateSetup(mode: ModeId, inputs: VehicleInputs): SetupRecomme
     aeroBalance: `${frontAero}% front / ${rearAero}% rear`,
     aeroDetail: "Bias moves rearward as horsepower-per-weight increases because high-speed exits need more rear stability.",
     differential: differentialBaseline(mode, inputs.drivetrain),
+    guidance: tuningGuidance(mode, inputs),
     powerTarget: {
       min: targetMin,
       max: targetMax,
-      note: `Current build is ${round(hpPer1000)} hp per 1000 lb. Heavier cars get a slightly lower efficiency target because traction and braking become the limiting factors sooner.`
+      note: "Heavier cars get a slightly lower efficiency target because traction and braking become the limiting factors sooner."
     },
     why: whyThisWorks(mode, inputs, targetMin, targetMax),
     issueFixes: issueFixes(mode),

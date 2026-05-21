@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 
 export type ModeId = "street" | "drift" | "offroad" | "rally";
 export type Drivetrain = "FWD" | "RWD" | "AWD";
-export type TireType = "street" | "sport" | "semi-slick" | "rally" | "offroad";
+export type TireType = "street" | "sport" | "semi-slick" | "drift" | "rally" | "offroad";
 export type WeightUnit = "lb" | "kg";
 
 export type VehicleInputs = {
@@ -47,6 +47,11 @@ export type SetupRecommendation = {
   aeroBalance: string;
   aeroDetail: string;
   differential: string[];
+  guidance: Array<{
+    title: string;
+    summary: string;
+    points: string[];
+  }>;
   powerTarget: {
     min: number;
     max: number;

@@ -40,7 +40,7 @@ export const modes: Record<ModeId, ModeConfig> = {
       tireWidthFront: 255,
       tireWidthRear: 265,
       frontWeightPercent: 53,
-      tireType: "sport",
+      tireType: "drift",
       showAdvanced: false
     }
   },

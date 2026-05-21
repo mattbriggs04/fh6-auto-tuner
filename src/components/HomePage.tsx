@@ -1,5 +1,5 @@
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Activity, ArrowDown } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import { modeList } from "../data/modes";
 import type { ModeConfig } from "../types";
 import { ModeSelector } from "./ModeSelector";
@@ -35,16 +35,6 @@ export function HomePage({ onSelect }: HomePageProps) {
           style={{ y: titleY }}
         >
           <div className="max-w-[880px]">
-            <motion.div
-              className="mb-5 inline-flex items-center gap-3 border border-[#262626] bg-black/35 px-4 py-2 font-['Rajdhani'] text-sm font-bold uppercase tracking-[0.18em] text-[#cfcfcf] backdrop-blur"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.08 }}
-            >
-              <Activity size={16} className="text-[#06b6d4]" />
-              Motorsport setup intelligence
-            </motion.div>
-
             <motion.h1
               className="font-['Rajdhani'] text-[clamp(5rem,15vw,13.5rem)] font-bold uppercase leading-[0.75] tracking-[-0.015em] text-white"
               initial={{ opacity: 0, y: 24 }}
@@ -76,13 +66,10 @@ export function HomePage({ onSelect }: HomePageProps) {
       </section>
 
       <section className="mx-auto grid w-full max-w-[1500px] gap-8 px-5 py-8 md:px-10 md:py-12 lg:px-14">
-        <div className="grid gap-4 border-b border-[#262626] pb-6 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="border-b border-[#262626] pb-6">
           <h2 className="font-['Rajdhani'] text-4xl font-bold uppercase leading-none text-white md:text-6xl">
-            Choose the setup target.
+            Tuning setup targets
           </h2>
-          <p className="max-w-2xl text-base leading-7 text-[#b8b8b8]">
-            Each mode uses a different grip, damping, aero, and differential model. Start with the closest discipline, then shape the car around the route and your driving style.
-          </p>
         </div>
 
         <ModeSelector modes={modeList} onSelect={onSelect} />

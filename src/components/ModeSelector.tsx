@@ -34,7 +34,7 @@ export function ModeSelector({ modes, onSelect }: ModeSelectorProps) {
               show: { opacity: 1, y: 0 }
             }}
           >
-            <Card accent={mode.accent} asButton className="group h-[21rem] w-full p-0" onClick={() => onSelect(mode)}>
+            <Card accent={mode.accent} asButton className="group h-[30rem] w-full p-0" onClick={() => onSelect(mode)}>
               <img alt="" className="absolute inset-0 h-full w-full object-cover opacity-60" src={mode.image} />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/58 to-transparent" />
               <div className="relative flex h-full flex-col justify-between p-5">

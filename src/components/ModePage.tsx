@@ -13,7 +13,7 @@ type ModePageProps = {
 };
 
 export function ModePage({ mode, onHome }: ModePageProps) {
-  const { inputs, mode: activeMode, setMode } = useTuningStore();
+  const { inputs, mode: activeMode, setMode, unit } = useTuningStore();
   const { scrollY } = useScroll();
   const imageY = useTransform(scrollY, [0, 520], [0, 70]);
 
@@ -24,7 +24,6 @@ export function ModePage({ mode, onHome }: ModePageProps) {
   }, [activeMode, mode.id, setMode]);
 
   const setup = useMemo(() => generateSetup(mode.id, inputs), [inputs, mode.id]);
-  const Icon = mode.icon;
 
   return (
     <motion.main
@@ -47,7 +46,6 @@ export function ModePage({ mode, onHome }: ModePageProps) {
             Horizon Tuner
           </motion.button>
           <div className="hidden items-center gap-3 font-mono text-xs uppercase tracking-[0.16em] text-[#777] md:flex">
-            <span>Mode</span>
             <span style={{ color: mode.accent }}>{mode.title}</span>
           </div>
         </div>
@@ -68,15 +66,6 @@ export function ModePage({ mode, onHome }: ModePageProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08, duration: 0.48, ease: "easeOut" }}
           >
-            <div className="mb-5 flex items-center gap-3">
-              <span className="grid size-12 place-items-center rounded-full border border-[#262626] bg-[#141414]/75" style={{ color: mode.accent }}>
-                <Icon size={23} strokeWidth={1.8} />
-              </span>
-              <span className="font-['Rajdhani'] text-sm font-bold uppercase tracking-[0.18em]" style={{ color: mode.accent }}>
-                Physics-inspired setup generator
-              </span>
-            </div>
-
             <h1 className="font-['Rajdhani'] text-[clamp(4.8rem,12vw,11rem)] font-bold uppercase leading-[0.78] tracking-[-0.01em] text-white">
               {mode.title}
             </h1>
@@ -114,7 +103,7 @@ export function ModePage({ mode, onHome }: ModePageProps) {
             </div>
           </motion.div>
 
-          <OutputPanel inputs={inputs} mode={mode} setup={setup} />
+          <OutputPanel inputs={inputs} mode={mode} setup={setup} unit={unit} />
         </div>
       </section>
     </motion.main>

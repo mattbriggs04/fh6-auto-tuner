@@ -6,7 +6,7 @@ import type { Drivetrain, ModeConfig, TireType, WeightUnit } from "../types";
 import { SliderInput } from "./SliderInput";
 
 const drivetrains: Drivetrain[] = ["FWD", "RWD", "AWD"];
-const tireTypes: TireType[] = ["street", "sport", "semi-slick", "rally", "offroad"];
+const tireTypes: TireType[] = ["street", "sport", "semi-slick", "drift", "rally", "offroad"];
 const units: WeightUnit[] = ["lb", "kg"];
 
 type VehicleInputPanelProps = {
@@ -22,7 +22,7 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
 
   return (
     <motion.aside
-      className="rounded-[1rem] border border-[#262626] bg-[#141414]/95"
+      className="flex max-h-none flex-col overflow-hidden rounded-[1rem] border border-[#262626] bg-[#141414]/95 lg:max-h-[calc(100svh-7rem)]"
       initial={{ opacity: 0, x: -22 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.42, ease: "easeOut" }}
@@ -34,12 +34,11 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
           </span>
           <div>
             <h2 className="font-['Rajdhani'] text-2xl font-bold uppercase leading-none text-white">Vehicle Inputs</h2>
-            <p className="mt-1 text-sm text-[#8f8f8f]">Change the build data and the setup regenerates instantly.</p>
           </div>
         </div>
       </div>
 
-      <div className="p-5">
+      <div className="min-h-0 overflow-visible p-5 lg:overflow-y-auto">
         <div className="mb-3 grid grid-cols-2 gap-2">
           {units.map((nextUnit) => (
             <ToggleButton
@@ -87,6 +86,7 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
                 key={drivetrain}
                 label={drivetrain}
                 onClick={() => setInput("drivetrain", drivetrain)}
+                recommended={mode.defaultInputs.drivetrain === drivetrain}
               />
             ))}
           </div>
@@ -137,6 +137,7 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
                 key={tireType}
                 label={tireType}
                 onClick={() => setInput("tireType", tireType)}
+                recommended={mode.defaultInputs.tireType === tireType}
               />
             ))}
           </div>
@@ -154,12 +155,15 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
             <span className="text-sm text-[#8f8f8f]">Corner load, grip, rotation, and stability indexes.</span>
           </span>
           <span
-            className="relative h-6 w-11 rounded-full border border-[#262626] bg-[#0a0a0a] p-0.5"
-            style={{ borderColor: inputs.showAdvanced ? mode.accent : "#262626" }}
+            className="relative block h-[28px] w-[52px] shrink-0 rounded-full border bg-[#0a0a0a]"
+            style={{
+              borderColor: inputs.showAdvanced ? mode.accent : "#262626",
+              boxShadow: inputs.showAdvanced ? `0 0 18px ${mode.accent}22` : "none"
+            }}
           >
             <motion.span
-              className="block size-4 rounded-full"
-              animate={{ x: inputs.showAdvanced ? 20 : 0, backgroundColor: inputs.showAdvanced ? mode.accent : "#5b5b5b" }}
+              className="absolute left-[3px] top-[3px] block size-[20px] rounded-full"
+              animate={{ x: inputs.showAdvanced ? 22 : 0, backgroundColor: inputs.showAdvanced ? mode.accent : "#5b5b5b" }}
               transition={{ type: "spring", stiffness: 360, damping: 26 }}
             />
           </span>
@@ -173,16 +177,18 @@ function ToggleButton({
   active,
   accent,
   label,
-  onClick
+  onClick,
+  recommended = false
 }: {
   active: boolean;
   accent: string;
   label: string;
   onClick: () => void;
+  recommended?: boolean;
 }) {
   return (
     <motion.button
-      className="rounded-[0.75rem] border px-3 py-2 font-['Rajdhani'] text-sm font-bold uppercase text-white"
+      className="flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-[0.75rem] border px-3 py-2 font-['Rajdhani'] text-sm font-bold uppercase text-white"
       onClick={onClick}
       style={{
         background: active ? `${accent}22` : "#0f0f0f",
@@ -194,7 +200,18 @@ function ToggleButton({
       whileTap={{ scale: 0.97 }}
       transition={{ type: "spring", stiffness: 280, damping: 22 }}
     >
-      {label}
+      <span>{label}</span>
+      {recommended ? (
+        <span
+          className="rounded-full border px-1.5 py-0.5 text-[0.56rem] font-bold uppercase leading-none tracking-[0.08em]"
+          style={{
+            borderColor: active ? accent : "#363636",
+            color: active ? accent : "#8f8f8f"
+          }}
+        >
+          Recommended
+        </span>
+      ) : null}
     </motion.button>
   );
 }

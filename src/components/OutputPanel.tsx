@@ -1,17 +1,26 @@
 import { motion } from "framer-motion";
-import { Activity, Crosshair, Gauge, Layers3, Wrench } from "lucide-react";
+import { Activity, Crosshair, Gauge, Layers3, SlidersHorizontal, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import type { ModeConfig, SetupRecommendation, VehicleInputs } from "../types";
+import { kgToLb } from "../lib/tuningHeuristics";
+import type { ModeConfig, SetupRecommendation, VehicleInputs, WeightUnit } from "../types";
 import { StatDisplay } from "./StatDisplay";
 
 type OutputPanelProps = {
   mode: ModeConfig;
   inputs: VehicleInputs;
   setup: SetupRecommendation;
+  unit: WeightUnit;
 };
 
-export function OutputPanel({ mode, inputs, setup }: OutputPanelProps) {
+export function OutputPanel({ mode, inputs, setup, unit }: OutputPanelProps) {
+  const displayedWeight = unit === "lb" ? kgToLb(inputs.weightKg) : inputs.weightKg;
+  const displayedFrontAxleLoad = unit === "lb" ? setup.advanced.frontAxleLoad : Math.round(inputs.weightKg * (inputs.frontWeightPercent / 100));
+  const displayedRearAxleLoad = unit === "lb" ? setup.advanced.rearAxleLoad : Math.round(inputs.weightKg * ((100 - inputs.frontWeightPercent) / 100));
+  const hpPerWeightUnit = unit === "lb"
+    ? Math.round(inputs.horsepower / (kgToLb(inputs.weightKg) / 1000))
+    : Math.round(inputs.horsepower / (inputs.weightKg / 1000));
+  const powerTargetDetail = `Current build is ${hpPerWeightUnit} hp per 1000 ${unit}. Heavier cars get a slightly lower efficiency target because traction and braking become the limiting factors sooner.`;
   const stats = [
     {
       label: "Spring rate",
@@ -41,7 +50,7 @@ export function OutputPanel({ mode, inputs, setup }: OutputPanelProps) {
     {
       label: "Power target",
       value: `${setup.powerTarget.min}-${setup.powerTarget.max} hp`,
-      detail: setup.powerTarget.note
+      detail: powerTargetDetail
     }
   ];
 
@@ -78,7 +87,7 @@ export function OutputPanel({ mode, inputs, setup }: OutputPanelProps) {
           </div>
           <div className="grid grid-cols-3 gap-3 text-right font-mono">
             <Telemetry label="HP" value={inputs.horsepower} />
-            <Telemetry label="KG" value={inputs.weightKg} />
+            <Telemetry label={unit.toUpperCase()} value={displayedWeight} />
             <Telemetry label="F%" value={inputs.frontWeightPercent} />
           </div>
         </div>
@@ -125,6 +134,40 @@ export function OutputPanel({ mode, inputs, setup }: OutputPanelProps) {
         }}
       >
         <div className="mb-4 flex items-center gap-2 font-['Rajdhani'] text-sm font-bold uppercase tracking-[0.12em]" style={{ color: mode.accent }}>
+          <SlidersHorizontal size={16} />
+          Tire, gearing, and diff guidance
+        </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {setup.guidance.map((item) => (
+            <motion.article
+              className="rounded-[0.85rem] border border-[#262626] bg-[#0f0f0f] p-4"
+              key={item.title}
+              whileHover={{ y: -3, borderColor: mode.accent }}
+              transition={{ type: "spring", stiffness: 260, damping: 24 }}
+            >
+              <h3 className="font-['Rajdhani'] text-xl font-bold uppercase text-white">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-[#b7b7b7]">{item.summary}</p>
+              <ul className="mt-4 grid gap-2">
+                {item.points.map((point) => (
+                  <li className="flex gap-3 text-sm leading-6 text-[#c7c7c7]" key={point}>
+                    <span className="mt-2 size-1.5 shrink-0 rounded-full" style={{ background: mode.accent }} />
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </motion.article>
+          ))}
+        </div>
+      </motion.div>
+
+      <motion.div
+        className="rounded-[1rem] border border-[#262626] bg-[#141414]/95 p-5"
+        variants={{
+          hidden: { opacity: 0, y: 18 },
+          show: { opacity: 1, y: 0 }
+        }}
+      >
+        <div className="mb-4 flex items-center gap-2 font-['Rajdhani'] text-sm font-bold uppercase tracking-[0.12em]" style={{ color: mode.accent }}>
           <Crosshair size={16} />
           Common issues and fixes
         </div>
@@ -155,8 +198,8 @@ export function OutputPanel({ mode, inputs, setup }: OutputPanelProps) {
             Advanced suspension model
           </div>
           <div className="grid gap-3 md:grid-cols-5">
-            <AdvancedMetric label="Front axle load" value={`${setup.advanced.frontAxleLoad} lb`} />
-            <AdvancedMetric label="Rear axle load" value={`${setup.advanced.rearAxleLoad} lb`} />
+            <AdvancedMetric label="Front axle load" value={`${displayedFrontAxleLoad} ${unit}`} />
+            <AdvancedMetric label="Rear axle load" value={`${displayedRearAxleLoad} ${unit}`} />
             <AdvancedMetric label="Grip index" value={setup.advanced.gripIndex} />
             <AdvancedMetric label="Rotation index" value={setup.advanced.rotationIndex} />
             <AdvancedMetric label="Stability index" value={setup.advanced.stabilityIndex} />
