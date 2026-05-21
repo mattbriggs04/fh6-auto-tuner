@@ -114,6 +114,87 @@ function dampingFromSpring(springRate: number, multiplier: number) {
   return round(clamp((springRate / 75) * multiplier, 2.2, 15), 1);
 }
 
+function rangeValue(percent: number) {
+  return `${Math.round(percent)}% slider`;
+}
+
+function classRangeOffset(performanceClass: PerformanceClass) {
+  const offsets: Record<PerformanceClass, number> = {
+    D: -8,
+    C: -5,
+    B: -2,
+    A: 0,
+    S1: 5,
+    S2: 10,
+    R: 14
+  };
+
+  return offsets[performanceClass];
+}
+
+function springRangeTargets(mode: ModeId, inputs: VehicleInputs) {
+  const classOffset = classRangeOffset(inputs.performanceClass);
+  const frontLoadOffset = (inputs.frontWeightPercent - 50) * 0.75;
+  const rearLoadOffset = (50 - (100 - inputs.frontWeightPercent)) * -0.75;
+  const targetByMode: Record<ModeId, { front: number; rear: number; min: number; max: number }> = {
+    street: { front: 32, rear: 30, min: 22, max: 58 },
+    drift: { front: 35, rear: 26, min: 18, max: 54 },
+    offroad: { front: 20, rear: 22, min: 14, max: 38 },
+    rally: { front: 27, rear: 29, min: 18, max: 45 },
+    drag: { front: 24, rear: 34, min: 16, max: 50 }
+  };
+  const target = targetByMode[mode];
+
+  return {
+    front: clamp(target.front + classOffset + frontLoadOffset, target.min, target.max),
+    rear: clamp(target.rear + classOffset + rearLoadOffset, target.min, target.max)
+  };
+}
+
+function dampingRangeTargets(mode: ModeId, springTargets: { front: number; rear: number }) {
+  const reboundOffset: Record<ModeId, number> = {
+    street: 8,
+    drift: 6,
+    offroad: 0,
+    rally: 4,
+    drag: 2
+  };
+  const bumpRatio: Record<ModeId, number> = {
+    street: 0.64,
+    drift: 0.58,
+    offroad: 0.5,
+    rally: 0.54,
+    drag: 0.55
+  };
+
+  const reboundFront = clamp(springTargets.front + reboundOffset[mode], 18, 74);
+  const reboundRear = clamp(springTargets.rear + reboundOffset[mode], 18, 74);
+
+  return {
+    reboundFront,
+    reboundRear,
+    bumpFront: clamp(reboundFront * bumpRatio[mode], 12, 52),
+    bumpRear: clamp(reboundRear * bumpRatio[mode], 12, 52)
+  };
+}
+
+function arbRangeTargets(mode: ModeId, performanceClass: PerformanceClass) {
+  const classOffset = classRangeOffset(performanceClass) * 0.55;
+  const targetByMode: Record<ModeId, { front: number; rear: number; min: number; max: number }> = {
+    street: { front: 45, rear: 40, min: 24, max: 65 },
+    drift: { front: 42, rear: 55, min: 22, max: 70 },
+    offroad: { front: 18, rear: 22, min: 10, max: 38 },
+    rally: { front: 28, rear: 32, min: 16, max: 48 },
+    drag: { front: 12, rear: 35, min: 8, max: 52 }
+  };
+  const target = targetByMode[mode];
+
+  return {
+    front: clamp(target.front + classOffset, target.min, target.max),
+    rear: clamp(target.rear + classOffset, target.min, target.max)
+  };
+}
+
 function tirePressureBaseline(mode: ModeId, tireType: TireType, drivetrain: Drivetrain) {
   if (mode === "drag") {
     if (drivetrain === "RWD") {
@@ -267,28 +348,6 @@ function alignmentRecommendations(mode: ModeId) {
   };
 }
 
-function arbRecommendations(mode: ModeId, performanceClass: PerformanceClass) {
-  const classAdd = performanceClass === "S2" || performanceClass === "R" ? 4 : performanceClass === "S1" ? 2 : 0;
-
-  if (mode === "drag") {
-    return { front: 8 + classAdd, rear: 24 + classAdd };
-  }
-
-  if (mode === "drift") {
-    return { front: 24 + classAdd, rear: 30 + classAdd };
-  }
-
-  if (mode === "rally") {
-    return { front: 17 + classAdd, rear: 19 + classAdd };
-  }
-
-  if (mode === "offroad") {
-    return { front: 11 + classAdd, rear: 14 + classAdd };
-  }
-
-  return { front: 26 + classAdd, rear: 23 + classAdd };
-}
-
 function rideHeightSplit(mode: ModeId) {
   if (mode === "drag") {
     return { front: "Low", rear: "Low + squat reserve" };
@@ -426,35 +485,25 @@ function differentialTuneValues(mode: ModeId, drivetrain: Drivetrain) {
 function buildTuneCards({
   aeroFront,
   aeroRear,
-  compressionFront,
-  compressionRear,
   drivetrain,
   inputs,
-  mode,
-  reboundFront,
-  reboundRear,
-  springFront,
-  springRear
+  mode
 }: {
   aeroFront: number;
   aeroRear: number;
-  compressionFront: number;
-  compressionRear: number;
   drivetrain: Drivetrain;
   inputs: VehicleInputs;
   mode: ModeId;
-  reboundFront: number;
-  reboundRear: number;
-  springFront: number;
-  springRear: number;
 }) {
   const pressures = tirePressureBaseline(mode, inputs.tireType, drivetrain);
   const gearing = gearingRecommendations(mode, inputs.performanceClass);
   const alignment = alignmentRecommendations(mode);
-  const arbs = arbRecommendations(mode, inputs.performanceClass);
+  const arbs = arbRangeTargets(mode, inputs.performanceClass);
   const rideHeight = rideHeightSplit(mode);
   const brakes = brakeRecommendations(mode, drivetrain);
   const diff = differentialTuneValues(mode, drivetrain);
+  const springRanges = springRangeTargets(mode, inputs);
+  const dampingRanges = dampingRangeTargets(mode, springRanges);
 
   return [
     {
@@ -491,38 +540,38 @@ function buildTuneCards({
     },
     {
       title: "Antiroll bars",
-      detail: "Softer front adds front grip; stiffer rear adds rotation. Rough surfaces need softer bars.",
+      detail: "Use percentage of the car's ARB slider range. Softer front adds front grip; stiffer rear adds rotation.",
       items: [
-        { label: "ARB front", value: `${arbs.front}` },
-        { label: "ARB rear", value: `${arbs.rear}` }
+        { label: "ARB front", value: rangeValue(arbs.front) },
+        { label: "ARB rear", value: rangeValue(arbs.rear) }
       ]
     },
     {
       title: "Springs",
-      detail: "Spring rates are generated from weight, front distribution, class, mode, tire grip, and drivetrain.",
+      detail: "Use percentage of the car's spring range: target = min + (max - min) x percent. This avoids bad absolute values on cars with unusual spring ranges.",
       items: [
-        { label: "Spring front", value: `${springFront} lb/in` },
-        { label: "Spring rear", value: `${springRear} lb/in` },
+        { label: "Spring front", value: rangeValue(springRanges.front) },
+        { label: "Spring rear", value: rangeValue(springRanges.rear) },
         { label: "Ride height front", value: rideHeight.front },
         { label: "Ride height rear", value: rideHeight.rear }
       ]
     },
     {
       title: "Damping",
-      detail: "Rebound controls body return; bump controls impact absorption and how sharply weight transfers.",
+      detail: "Use percentage of the car's damping slider range. Rebound controls body return; bump should usually stay lower than rebound.",
       items: [
-        { label: "Rebound front", value: `${reboundFront}` },
-        { label: "Rebound rear", value: `${reboundRear}` },
-        { label: "Bump front", value: `${compressionFront}` },
-        { label: "Bump rear", value: `${compressionRear}` }
+        { label: "Rebound front", value: rangeValue(dampingRanges.reboundFront) },
+        { label: "Rebound rear", value: rangeValue(dampingRanges.reboundRear) },
+        { label: "Bump front", value: rangeValue(dampingRanges.bumpFront) },
+        { label: "Bump rear", value: rangeValue(dampingRanges.bumpRear) }
       ]
     },
     {
       title: "Aero",
-      detail: "Treat these as percentages of available downforce. Add rear for stability and front for high-speed rotation.",
+      detail: "Use percentage of the car's available aero slider range. Add rear for stability and front for high-speed rotation.",
       items: [
-        { label: "Downforce front", value: `${aeroFront}%` },
-        { label: "Downforce rear", value: `${aeroRear}%` }
+        { label: "Downforce front", value: rangeValue(aeroFront) },
+        { label: "Downforce rear", value: rangeValue(aeroRear) }
       ]
     },
     {
@@ -997,15 +1046,9 @@ export function generateSetup(mode: ModeId, inputs: VehicleInputs): SetupRecomme
     tuneCards: buildTuneCards({
       aeroFront: frontAero,
       aeroRear: rearAero,
-      compressionFront,
-      compressionRear,
       drivetrain: inputs.drivetrain,
       inputs,
-      mode,
-      reboundFront,
-      reboundRear,
-      springFront,
-      springRear
+      mode
     }),
     springFront,
     springRear,

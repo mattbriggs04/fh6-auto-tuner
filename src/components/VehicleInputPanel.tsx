@@ -199,8 +199,8 @@ function inputGuidance(mode: ModeConfig) {
   const shared = {
     performanceClass: `Performance class changes the upgrade budget and how aggressive the tire, spring, power, gearing, and drivetrain recommendations should be for ${modeName}. Higher classes can justify more grip and aero; lower classes need more PI discipline.`,
     horsepower: `Horsepower changes the power-to-weight target, aero stability need, differential aggression, and gearing sensitivity. For ${modeName}, usable delivery matters more than the highest number.`,
-    frontTireWidth: `Front width controls turn-in, braking support, and how much front grip the setup can lean on. More front width usually helps precision, but it costs PI and can add drag.`,
-    rearTireWidth: `Rear width controls launch, corner-exit drive, and rear stability. Wider rear tires help put power down, but too much rear grip can make the car resist rotation.`,
+    frontTireWidth: `Front width controls turn-in, braking support, and how much front grip the setup can lean on. Relative to rear width, a wider front helps rotation and braking; a narrower front saves PI and drag but can add understeer.`,
+    rearTireWidth: `Rear width controls launch, corner-exit drive, and rear stability. Relative to front width, a wider rear helps traction and high-power exits; too much rear stagger can make the car resist rotation.`,
     weightDistribution: `Front percentage changes the spring split and the stability/rotation balance. More front weight is calmer under braking but usually needs more setup help to rotate.`,
     tireType: "Tire compound decides the surface the car is built around. Slicks are dry asphalt grip, drift tires break away predictably, rally/offroad tires work on loose surfaces, snow tires are for snow events, and drag tires are mainly for launch traction."
   };
@@ -210,8 +210,8 @@ function inputGuidance(mode: ModeConfig) {
       ...shared,
       weight: "Weight changes inertia. A heavier drift car needs more power and cleaner gearing to hold wheel speed, but the extra mass can make transitions slower and harder to catch.",
       drivetrain: "RWD is the cleanest drift baseline because it teaches angle and throttle control. AWD can score well, but it should usually be rear-biased so the front axle does not pull the car straight.",
-      frontTireWidth: "Front width is especially important for drift because the front axle has to accept angle and self-steer. More front grip can help placement, but too much can make transitions feel sharp.",
-      rearTireWidth: "Rear width decides how easy the car is to keep sideways. More rear width adds drive and stability; less rear width makes lower-power cars easier to slide."
+      frontTireWidth: "Front width is especially important for drift because the front axle has to accept angle and self-steer. Drift builds often run front width close to, or wider than, rear width for bite; too much front compared with rear can make transitions sharp.",
+      rearTireWidth: "Rear width decides how easy the car is to keep sideways. Less rear width than front makes lower-power cars easier to slide; more rear width adds drive and stability for high-power or faster drift zones."
     };
   }
 
@@ -219,7 +219,9 @@ function inputGuidance(mode: ModeConfig) {
     return {
       ...shared,
       weight: "Weight affects landing control, suspension travel, and how quickly the car recovers after bumps. Heavier offroad builds need softer impact behavior before they need more power.",
-      drivetrain: "AWD is the practical offroad baseline because rough terrain needs drive from both axles. Too much front lock can still make the car plow under throttle."
+      drivetrain: "AWD is the practical offroad baseline because rough terrain needs drive from both axles. Too much front lock can still make the car plow under throttle.",
+      frontTireWidth: "Front width helps the car pull and steer through rough terrain. Offroad builds usually like a square or near-square setup so the car does not dig or skate unpredictably.",
+      rearTireWidth: "Rear width helps drive out of grass, sand, water, and climbs. Keep it close to front width for stability; a mild rear bias is fine for high-power trucks."
     };
   }
 
@@ -227,7 +229,9 @@ function inputGuidance(mode: ModeConfig) {
     return {
       ...shared,
       weight: "Weight affects how quickly the car changes direction over crests and loose corners. Lighter rally cars rotate faster; heavier cars need more damping control and stable braking.",
-      drivetrain: "AWD is the rally baseline for loose exits and recovery. Rear-biased AWD keeps rotation while preserving traction when the surface changes."
+      drivetrain: "AWD is the rally baseline for loose exits and recovery. Rear-biased AWD keeps rotation while preserving traction when the surface changes.",
+      frontTireWidth: "Front width supports braking and turn-in on mixed surfaces. Rally cars usually prefer square or near-square widths so both axles read the loose surface consistently.",
+      rearTireWidth: "Rear width adds exit drive, but too much rear bias can make the car push on throttle. Keep rear width close to front unless the car is overpowered."
     };
   }
 
@@ -237,8 +241,8 @@ function inputGuidance(mode: ModeConfig) {
       weight: "Weight is one of the biggest drag variables. Less mass improves launch, acceleration, and shift recovery, but the build still needs enough rear tire and drivetrain strength to use the power.",
       horsepower: "Horsepower matters more in drag than in any other mode, but only after the car can hook. If the launch spins, more power usually makes the time worse.",
       drivetrain: "AWD gives the most repeatable launch. RWD can be faster when rear tire, power delivery, and gearing are good enough to leave cleanly.",
-      frontTireWidth: "Front width adds drag and PI without helping launch much. Drag builds usually keep the front narrower unless AWD traction or stability needs it.",
-      rearTireWidth: "Rear width is launch grip. RWD drag builds usually want as much rear tire as the chassis allows; AWD still benefits from rear support under squat.",
+      frontTireWidth: "Front width adds drag and PI without helping launch much. Drag builds usually run a much narrower front than rear unless AWD traction or stability needs more front footprint.",
+      rearTireWidth: "Rear width is launch grip. RWD drag builds usually want the rear much wider than the front; AWD can be more balanced but still benefits from extra rear support under squat.",
       weightDistribution: "Front percentage affects launch transfer. More rear load helps traction, but too little front stability can make the car wander at high speed.",
       tireType: "Drag tires are the target compound for launch grip. Slicks can work when drag tires are unavailable or PI-limited; avoid rally/offroad/snow unless the event requires them."
     };
@@ -247,7 +251,9 @@ function inputGuidance(mode: ModeConfig) {
   return {
     ...shared,
     weight: "Weight drives the spring, damping, and power-target baselines. Heavier street cars need more support for braking and cornering, but they usually reach the point of diminishing returns on horsepower sooner.",
-    drivetrain: "AWD helps launch and corner exit on high-power street builds. RWD is lighter and sharper when the car has enough rear grip. FWD needs conservative power and more front-tire support."
+    drivetrain: "AWD helps launch and corner exit on high-power street builds. RWD is lighter and sharper when the car has enough rear grip. FWD needs conservative power and more front-tire support.",
+    frontTireWidth: "Front width affects braking and entry grip. Street builds usually want front and rear close together for balance; RWD power builds can run a wider rear, while FWD often needs a stronger front tire.",
+    rearTireWidth: "Rear width affects exit traction and stability. Keep it close to front width for balanced handling; add rear stagger when RWD or high-power AWD needs more drive off corners."
   };
 }
 
