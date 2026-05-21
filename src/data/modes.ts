@@ -13,6 +13,7 @@ export const modes: Record<ModeId, ModeConfig> = {
     image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=2200&q=88",
     icon: Gauge,
     defaultInputs: {
+      performanceClass: "A",
       weightKg: 1425,
       horsepower: 520,
       drivetrain: "AWD",
@@ -34,6 +35,7 @@ export const modes: Record<ModeId, ModeConfig> = {
     image: "https://images.unsplash.com/photo-1525609004556-c46c7d6cf023?auto=format&fit=crop&w=2200&q=88",
     icon: RotateCcw,
     defaultInputs: {
+      performanceClass: "S1",
       weightKg: 1280,
       horsepower: 650,
       drivetrain: "RWD",
@@ -55,6 +57,7 @@ export const modes: Record<ModeId, ModeConfig> = {
     image: "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=2200&q=88",
     icon: Mountain,
     defaultInputs: {
+      performanceClass: "A",
       weightKg: 2050,
       horsepower: 560,
       drivetrain: "AWD",
@@ -76,6 +79,7 @@ export const modes: Record<ModeId, ModeConfig> = {
     image: "https://images.unsplash.com/photo-1517994112540-009c47ea476b?auto=format&fit=crop&w=2200&q=88",
     icon: Route,
     defaultInputs: {
+      performanceClass: "A",
       weightKg: 1350,
       horsepower: 420,
       drivetrain: "AWD",

@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Info } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type SliderInputProps = {
@@ -9,6 +10,7 @@ type SliderInputProps = {
   step?: number;
   displayValue: string;
   accent: string;
+  info?: string;
   onChange: (value: number) => void;
 };
 
@@ -20,9 +22,11 @@ export function SliderInput({
   step = 1,
   displayValue,
   accent,
+  info,
   onChange
 }: SliderInputProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [draft, setDraft] = useState(String(value));
   const fill = ((value - min) / (max - min)) * 100;
 
@@ -43,14 +47,30 @@ export function SliderInput({
   };
 
   return (
-    <motion.label
+    <motion.div
       className="grid gap-3 border-b border-[#262626] py-4 last:border-b-0"
       whileHover={{ x: 3 }}
       transition={{ type: "spring", stiffness: 260, damping: 26 }}
     >
       <span className="flex items-center justify-between gap-4">
-        <span className="font-['Rajdhani'] text-[0.78rem] font-bold uppercase tracking-[0.12em] text-[#9ca3af]">
-          {label}
+        <span className="flex items-center gap-2">
+          <span className="font-['Rajdhani'] text-[0.78rem] font-bold uppercase tracking-[0.12em] text-[#9ca3af]">
+            {label}
+          </span>
+          {info ? (
+            <button
+              aria-label={`About ${label}`}
+              className="grid size-5 place-items-center rounded-full border border-[#363636] text-[#9ca3af] transition-colors hover:text-white"
+              onClick={() => setIsInfoOpen((current) => !current)}
+              style={{
+                borderColor: isInfoOpen ? accent : "#363636",
+                color: isInfoOpen ? accent : undefined
+              }}
+              type="button"
+            >
+              <Info size={13} strokeWidth={2} />
+            </button>
+          ) : null}
         </span>
         {isEditing ? (
           <input
@@ -92,6 +112,16 @@ export function SliderInput({
           </button>
         )}
       </span>
+      {info && isInfoOpen ? (
+        <motion.p
+          className="rounded-[0.75rem] border border-[#262626] bg-[#0f0f0f] p-3 text-sm leading-6 text-[#bdbdbd]"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.16 }}
+        >
+          {info}
+        </motion.p>
+      ) : null}
       <input
         className="h-2 w-full cursor-pointer appearance-none rounded-full bg-[#262626]"
         max={max}
@@ -106,6 +136,6 @@ export function SliderInput({
         type="range"
         value={value}
       />
-    </motion.label>
+    </motion.div>
   );
 }

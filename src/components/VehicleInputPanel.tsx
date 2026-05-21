@@ -1,12 +1,15 @@
 import { motion } from "framer-motion";
-import { Cpu, Scale, Settings2 } from "lucide-react";
-import { kgToLb, lbToKg } from "../lib/tuningHeuristics";
+import { Cpu, Info, Scale, Settings2, Trophy } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
+import { getClassOptimization, kgToLb, lbToKg } from "../lib/tuningHeuristics";
 import { useTuningStore } from "../store/tuningStore";
-import type { Drivetrain, ModeConfig, TireType, WeightUnit } from "../types";
+import type { Drivetrain, ModeConfig, PerformanceClass, TireType, WeightUnit } from "../types";
 import { SliderInput } from "./SliderInput";
 
 const drivetrains: Drivetrain[] = ["FWD", "RWD", "AWD"];
-const tireTypes: TireType[] = ["street", "sport", "semi-slick", "drift", "rally", "offroad"];
+const tireTypes: TireType[] = ["street", "sport", "semi-slick", "slick", "drift", "rally", "offroad", "snow", "drag"];
+const performanceClasses: PerformanceClass[] = ["D", "C", "B", "A", "S1", "S2", "R"];
 const units: WeightUnit[] = ["lb", "kg"];
 
 type VehicleInputPanelProps = {
@@ -19,6 +22,8 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
   const weightMin = unit === "lb" ? 1800 : 820;
   const weightMax = unit === "lb" ? 5600 : 2540;
   const weightStep = unit === "lb" ? 25 : 10;
+  const info = inputGuidance(mode);
+  const classOptimization = getClassOptimization(mode.id, inputs.performanceClass);
 
   return (
     <motion.aside
@@ -51,12 +56,29 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
           ))}
         </div>
 
+        <div className="border-b border-[#262626] py-4">
+          <FieldHeader accent={mode.accent} icon={Trophy} info={info.performanceClass} label="Performance class" />
+          <select
+            className="h-11 w-full rounded-[0.75rem] border border-[#262626] bg-[#0f0f0f] px-3 font-['Rajdhani'] text-base font-bold uppercase text-white outline-none"
+            onChange={(event) => setInput("performanceClass", event.target.value as PerformanceClass)}
+            style={{ colorScheme: "dark" }}
+            value={inputs.performanceClass}
+          >
+            {performanceClasses.map((performanceClass) => (
+              <option key={performanceClass} value={performanceClass}>
+                {performanceClass} class
+              </option>
+            ))}
+          </select>
+        </div>
+
         <SliderInput
           accent={mode.accent}
           displayValue={`${weightValue.toLocaleString()} ${unit}`}
           label="Vehicle weight"
           max={weightMax}
           min={weightMin}
+          info={info.weight}
           onChange={(value) => setInput("weightKg", unit === "lb" ? lbToKg(value) : value)}
           step={weightStep}
           value={weightValue}
@@ -68,16 +90,14 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
           label="Horsepower"
           max={1600}
           min={100}
+          info={info.horsepower}
           onChange={(value) => setInput("horsepower", value)}
           step={10}
           value={inputs.horsepower}
         />
 
         <div className="border-b border-[#262626] py-4">
-          <div className="mb-3 flex items-center gap-2 font-['Rajdhani'] text-[0.78rem] font-bold uppercase tracking-[0.12em] text-[#9ca3af]">
-            <Cpu size={15} />
-            Drivetrain
-          </div>
+          <FieldHeader accent={mode.accent} icon={Cpu} info={info.drivetrain} label="Drivetrain" />
           <div className="grid grid-cols-3 gap-2">
             {drivetrains.map((drivetrain) => (
               <ToggleButton
@@ -98,6 +118,7 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
           label="Front tire width"
           max={365}
           min={155}
+          info={info.frontTireWidth}
           onChange={(value) => setInput("tireWidthFront", value)}
           step={5}
           value={inputs.tireWidthFront}
@@ -109,6 +130,7 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
           label="Rear tire width"
           max={365}
           min={155}
+          info={info.rearTireWidth}
           onChange={(value) => setInput("tireWidthRear", value)}
           step={5}
           value={inputs.tireWidthRear}
@@ -120,15 +142,13 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
           label="Weight distribution"
           max={68}
           min={35}
+          info={info.weightDistribution}
           onChange={(value) => setInput("frontWeightPercent", value)}
           value={inputs.frontWeightPercent}
         />
 
         <div className="border-b border-[#262626] py-4">
-          <div className="mb-3 flex items-center gap-2 font-['Rajdhani'] text-[0.78rem] font-bold uppercase tracking-[0.12em] text-[#9ca3af]">
-            <Scale size={15} />
-            Tire type
-          </div>
+          <FieldHeader accent={mode.accent} icon={Scale} info={info.tireType} label="Tire type" />
           <div className="grid grid-cols-2 gap-2">
             {tireTypes.map((tireType) => (
               <ToggleButton
@@ -137,7 +157,7 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
                 key={tireType}
                 label={tireType}
                 onClick={() => setInput("tireType", tireType)}
-                recommended={mode.defaultInputs.tireType === tireType}
+                recommended={classOptimization.recommendedTires.includes(tireType)}
               />
             ))}
           </div>
@@ -170,6 +190,96 @@ export function VehicleInputPanel({ mode }: VehicleInputPanelProps) {
         </motion.button>
       </div>
     </motion.aside>
+  );
+}
+
+function inputGuidance(mode: ModeConfig) {
+  const modeName = mode.title.toLowerCase();
+
+  const shared = {
+    performanceClass: `Performance class changes the upgrade budget and how aggressive the tire, spring, power, gearing, and drivetrain recommendations should be for ${modeName}. Higher classes can justify more grip and aero; lower classes need more PI discipline.`,
+    horsepower: `Horsepower changes the power-to-weight target, aero stability need, differential aggression, and gearing sensitivity. For ${modeName}, usable delivery matters more than the highest number.`,
+    frontTireWidth: `Front width controls turn-in, braking support, and how much front grip the setup can lean on. More front width usually helps precision, but it costs PI and can add drag.`,
+    rearTireWidth: `Rear width controls launch, corner-exit drive, and rear stability. Wider rear tires help put power down, but too much rear grip can make the car resist rotation.`,
+    weightDistribution: `Front percentage changes the spring split and the stability/rotation balance. More front weight is calmer under braking but usually needs more setup help to rotate.`,
+    tireType: "Tire compound decides the surface the car is built around. Slicks are dry asphalt grip, drift tires break away predictably, rally/offroad tires work on loose surfaces, snow tires are for snow events, and drag tires are mainly for launch traction."
+  };
+
+  if (mode.id === "drift") {
+    return {
+      ...shared,
+      weight: "Weight changes inertia. A heavier drift car needs more power and cleaner gearing to hold wheel speed, but the extra mass can make transitions slower and harder to catch.",
+      drivetrain: "RWD is the cleanest drift baseline because it teaches angle and throttle control. AWD can score well, but it should usually be rear-biased so the front axle does not pull the car straight.",
+      frontTireWidth: "Front width is especially important for drift because the front axle has to accept angle and self-steer. More front grip can help placement, but too much can make transitions feel sharp.",
+      rearTireWidth: "Rear width decides how easy the car is to keep sideways. More rear width adds drive and stability; less rear width makes lower-power cars easier to slide."
+    };
+  }
+
+  if (mode.id === "offroad") {
+    return {
+      ...shared,
+      weight: "Weight affects landing control, suspension travel, and how quickly the car recovers after bumps. Heavier offroad builds need softer impact behavior before they need more power.",
+      drivetrain: "AWD is the practical offroad baseline because rough terrain needs drive from both axles. Too much front lock can still make the car plow under throttle."
+    };
+  }
+
+  if (mode.id === "rally") {
+    return {
+      ...shared,
+      weight: "Weight affects how quickly the car changes direction over crests and loose corners. Lighter rally cars rotate faster; heavier cars need more damping control and stable braking.",
+      drivetrain: "AWD is the rally baseline for loose exits and recovery. Rear-biased AWD keeps rotation while preserving traction when the surface changes."
+    };
+  }
+
+  return {
+    ...shared,
+    weight: "Weight drives the spring, damping, and power-target baselines. Heavier street cars need more support for braking and cornering, but they usually reach the point of diminishing returns on horsepower sooner.",
+    drivetrain: "AWD helps launch and corner exit on high-power street builds. RWD is lighter and sharper when the car has enough rear grip. FWD needs conservative power and more front-tire support."
+  };
+}
+
+function FieldHeader({
+  accent,
+  icon: Icon,
+  info,
+  label
+}: {
+  accent: string;
+  icon: LucideIcon;
+  info: string;
+  label: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mb-3 grid gap-3">
+      <div className="flex items-center gap-2 font-['Rajdhani'] text-[0.78rem] font-bold uppercase tracking-[0.12em] text-[#9ca3af]">
+        <Icon size={15} />
+        {label}
+        <button
+          aria-label={`About ${label}`}
+          className="grid size-5 place-items-center rounded-full border border-[#363636] text-[#9ca3af] transition-colors hover:text-white"
+          onClick={() => setIsOpen((current) => !current)}
+          style={{
+            borderColor: isOpen ? accent : "#363636",
+            color: isOpen ? accent : undefined
+          }}
+          type="button"
+        >
+          <Info size={13} strokeWidth={2} />
+        </button>
+      </div>
+      {isOpen ? (
+        <motion.p
+          className="rounded-[0.75rem] border border-[#262626] bg-[#0f0f0f] p-3 text-sm normal-case leading-6 tracking-normal text-[#bdbdbd]"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.16 }}
+        >
+          {info}
+        </motion.p>
+      ) : null}
+    </div>
   );
 }
 

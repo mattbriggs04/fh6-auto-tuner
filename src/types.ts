@@ -2,10 +2,12 @@ import type { LucideIcon } from "lucide-react";
 
 export type ModeId = "street" | "drift" | "offroad" | "rally";
 export type Drivetrain = "FWD" | "RWD" | "AWD";
-export type TireType = "street" | "sport" | "semi-slick" | "drift" | "rally" | "offroad";
+export type TireType = "street" | "sport" | "semi-slick" | "slick" | "drift" | "rally" | "offroad" | "snow" | "drag";
+export type PerformanceClass = "D" | "C" | "B" | "A" | "S1" | "S2" | "R";
 export type WeightUnit = "lb" | "kg";
 
 export type VehicleInputs = {
+  performanceClass: PerformanceClass;
   weightKg: number;
   horsepower: number;
   drivetrain: Drivetrain;
@@ -35,7 +37,17 @@ export type Stat = {
   detail: string;
 };
 
+export type TuneCard = {
+  title: string;
+  detail: string;
+  items: Array<{
+    label: string;
+    value: string;
+  }>;
+};
+
 export type SetupRecommendation = {
+  tuneCards: TuneCard[];
   springFront: number;
   springRear: number;
   compressionFront: number;
@@ -47,6 +59,15 @@ export type SetupRecommendation = {
   aeroBalance: string;
   aeroDetail: string;
   differential: string[];
+  classOptimization: {
+    classKey: PerformanceClass;
+    recommendedTires: TireType[];
+    tireSummary: string;
+    upgradeFocus: string[];
+    drivetrainAdvice: string;
+    transmissionAdvice: string;
+    piAdvice: string;
+  };
   guidance: Array<{
     title: string;
     summary: string;

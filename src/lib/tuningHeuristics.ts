@@ -1,4 +1,4 @@
-import type { Drivetrain, ModeId, SetupRecommendation, TireType, VehicleInputs } from "../types";
+import type { Drivetrain, ModeId, PerformanceClass, SetupRecommendation, TireType, VehicleInputs } from "../types";
 
 const KG_TO_LB = 2.20462;
 
@@ -6,9 +6,32 @@ const tireGrip: Record<TireType, number> = {
   street: 0.93,
   sport: 1,
   "semi-slick": 1.1,
+  slick: 1.16,
   drift: 1.02,
   rally: 1.03,
-  offroad: 1.06
+  offroad: 1.06,
+  snow: 0.98,
+  drag: 1.08
+};
+
+const classPowerScalar: Record<PerformanceClass, number> = {
+  D: 0.45,
+  C: 0.6,
+  B: 0.75,
+  A: 0.92,
+  S1: 1.1,
+  S2: 1.35,
+  R: 1.55
+};
+
+const classSpringScalar: Record<PerformanceClass, number> = {
+  D: 0.78,
+  C: 0.86,
+  B: 0.93,
+  A: 1,
+  S1: 1.08,
+  S2: 1.16,
+  R: 1.24
 };
 
 const modeModel: Record<ModeId, {
@@ -80,6 +103,373 @@ function dampingFromSpring(springRate: number, multiplier: number) {
   return round(clamp((springRate / 75) * multiplier, 2.2, 15), 1);
 }
 
+function tirePressureBaseline(mode: ModeId, tireType: TireType, drivetrain: Drivetrain) {
+  const baseByTire: Record<TireType, [number, number]> = {
+    street: [31, 31],
+    sport: [31.5, 31.5],
+    "semi-slick": [32, 32],
+    slick: [32.5, 32],
+    drift: [24, 25],
+    rally: [29.5, 29.5],
+    offroad: [28.5, 28.5],
+    snow: [28, 28],
+    drag: drivetrain === "RWD" ? [32, 25] : [27, 27]
+  };
+
+  const [front, rear] = baseByTire[tireType];
+
+  if (mode === "drift") {
+    return {
+      front: round(clamp(front - 1, 20, 38), 1),
+      rear: round(clamp(rear + 1, 20, 40), 1)
+    };
+  }
+
+  if (mode === "offroad") {
+    return {
+      front: round(clamp(front - 1, 22, 34), 1),
+      rear: round(clamp(rear - 1, 22, 34), 1)
+    };
+  }
+
+  return {
+    front: round(front, 1),
+    rear: round(rear, 1)
+  };
+}
+
+function gearingRecommendations(mode: ModeId, performanceClass: PerformanceClass) {
+  if (mode === "drift") {
+    return {
+      finalDrive: "Longer than grip tune",
+      first: "Launch only",
+      second: "Short transition gear",
+      third: "Primary drift gear",
+      fourth: performanceClass === "S2" || performanceClass === "R" ? "Fast drift gear" : "Long-route gear",
+      fifth: "Recovery / extension",
+      sixth: "Top speed"
+    };
+  }
+
+  if (mode === "rally" || mode === "offroad") {
+    return {
+      finalDrive: "Shorter for recovery",
+      first: "Loose launch",
+      second: "Hairpins / climbs",
+      third: "Main exit gear",
+      fourth: "Mid-speed pulls",
+      fifth: "Fast sections",
+      sixth: "Open sections"
+    };
+  }
+
+  if (performanceClass === "S2" || performanceClass === "R") {
+    return {
+      finalDrive: "Route-matched",
+      first: "Traction limited",
+      second: "Corner exits",
+      third: "Main acceleration",
+      fourth: "Mid-speed pull",
+      fifth: "Fast straights",
+      sixth: "Maximum route speed"
+    };
+  }
+
+  return {
+    finalDrive: "Slightly shorter",
+    first: "Clean launch",
+    second: "Slow exits",
+    third: "Main corner exit",
+    fourth: "Mid-speed",
+    fifth: "Fast sections",
+    sixth: "Top speed"
+  };
+}
+
+function alignmentRecommendations(mode: ModeId) {
+  if (mode === "drift") {
+    return {
+      camberFront: "-4.0 deg",
+      camberRear: "-0.5 deg",
+      toeFront: "Out 0.2 deg",
+      toeRear: "0.0 deg",
+      caster: "7.0 deg"
+    };
+  }
+
+  if (mode === "rally") {
+    return {
+      camberFront: "-1.3 deg",
+      camberRear: "-0.8 deg",
+      toeFront: "0.0 deg",
+      toeRear: "In 0.1 deg",
+      caster: "6.0 deg"
+    };
+  }
+
+  if (mode === "offroad") {
+    return {
+      camberFront: "-0.8 deg",
+      camberRear: "-0.5 deg",
+      toeFront: "0.0 deg",
+      toeRear: "In 0.1 deg",
+      caster: "5.6 deg"
+    };
+  }
+
+  return {
+    camberFront: "-1.6 deg",
+    camberRear: "-1.1 deg",
+    toeFront: "0.0 deg",
+    toeRear: "0.0 deg",
+    caster: "6.2 deg"
+  };
+}
+
+function arbRecommendations(mode: ModeId, performanceClass: PerformanceClass) {
+  const classAdd = performanceClass === "S2" || performanceClass === "R" ? 4 : performanceClass === "S1" ? 2 : 0;
+
+  if (mode === "drift") {
+    return { front: 24 + classAdd, rear: 30 + classAdd };
+  }
+
+  if (mode === "rally") {
+    return { front: 17 + classAdd, rear: 19 + classAdd };
+  }
+
+  if (mode === "offroad") {
+    return { front: 11 + classAdd, rear: 14 + classAdd };
+  }
+
+  return { front: 26 + classAdd, rear: 23 + classAdd };
+}
+
+function rideHeightSplit(mode: ModeId) {
+  if (mode === "offroad") {
+    return { front: "High", rear: "High + 1 step" };
+  }
+
+  if (mode === "rally") {
+    return { front: "Medium-high", rear: "Medium-high" };
+  }
+
+  if (mode === "drift") {
+    return { front: "Medium-low", rear: "Medium-low + 1 step" };
+  }
+
+  return { front: "Low", rear: "Low + 1 step" };
+}
+
+function brakeRecommendations(mode: ModeId, drivetrain: Drivetrain) {
+  if (mode === "drift") {
+    return { balance: "55% front", pressure: "105%" };
+  }
+
+  if (mode === "offroad") {
+    return { balance: "62% front", pressure: "90%" };
+  }
+
+  if (mode === "rally") {
+    return { balance: "60% front", pressure: "95%" };
+  }
+
+  if (drivetrain === "FWD") {
+    return { balance: "58% front", pressure: "100%" };
+  }
+
+  return { balance: "56% front", pressure: "105%" };
+}
+
+function differentialTuneValues(mode: ModeId, drivetrain: Drivetrain) {
+  if (drivetrain === "FWD") {
+    return {
+      frontAccel: mode === "street" ? "35%" : "30%",
+      frontDecel: "10%",
+      rearAccel: "N/A",
+      rearDecel: "N/A",
+      center: "N/A"
+    };
+  }
+
+  if (drivetrain === "RWD") {
+    return {
+      frontAccel: "N/A",
+      frontDecel: "N/A",
+      rearAccel: mode === "drift" ? "95%" : "55%",
+      rearDecel: mode === "drift" ? "75%" : "30%",
+      center: "N/A"
+    };
+  }
+
+  if (mode === "drift") {
+    return {
+      frontAccel: "12%",
+      frontDecel: "0%",
+      rearAccel: "95%",
+      rearDecel: "75%",
+      center: "90% rear"
+    };
+  }
+
+  if (mode === "offroad") {
+    return {
+      frontAccel: "38%",
+      frontDecel: "10%",
+      rearAccel: "68%",
+      rearDecel: "22%",
+      center: "62% rear"
+    };
+  }
+
+  if (mode === "rally") {
+    return {
+      frontAccel: "30%",
+      frontDecel: "8%",
+      rearAccel: "58%",
+      rearDecel: "22%",
+      center: "70% rear"
+    };
+  }
+
+  return {
+    frontAccel: "24%",
+    frontDecel: "0%",
+    rearAccel: "60%",
+    rearDecel: "35%",
+    center: "72% rear"
+  };
+}
+
+function buildTuneCards({
+  aeroFront,
+  aeroRear,
+  compressionFront,
+  compressionRear,
+  drivetrain,
+  inputs,
+  mode,
+  reboundFront,
+  reboundRear,
+  springFront,
+  springRear
+}: {
+  aeroFront: number;
+  aeroRear: number;
+  compressionFront: number;
+  compressionRear: number;
+  drivetrain: Drivetrain;
+  inputs: VehicleInputs;
+  mode: ModeId;
+  reboundFront: number;
+  reboundRear: number;
+  springFront: number;
+  springRear: number;
+}) {
+  const pressures = tirePressureBaseline(mode, inputs.tireType, drivetrain);
+  const gearing = gearingRecommendations(mode, inputs.performanceClass);
+  const alignment = alignmentRecommendations(mode);
+  const arbs = arbRecommendations(mode, inputs.performanceClass);
+  const rideHeight = rideHeightSplit(mode);
+  const brakes = brakeRecommendations(mode, drivetrain);
+  const diff = differentialTuneValues(mode, drivetrain);
+
+  return [
+    {
+      title: "Tires",
+      detail: "Start here, then adjust pressure after a clean warm run based on grip, response, and heat.",
+      items: [
+        { label: "PSI front", value: `${pressures.front}` },
+        { label: "PSI rear", value: `${pressures.rear}` }
+      ]
+    },
+    {
+      title: "Gearing",
+      detail: "Set final drive around the route, then tune individual gears only when a gear falls out of the powerband.",
+      items: [
+        { label: "Final drive", value: gearing.finalDrive },
+        { label: "1st gear", value: gearing.first },
+        { label: "2nd gear", value: gearing.second },
+        { label: "3rd gear", value: gearing.third },
+        { label: "4th gear", value: gearing.fourth },
+        { label: "5th gear", value: gearing.fifth },
+        { label: "6th gear", value: gearing.sixth }
+      ]
+    },
+    {
+      title: "Alignment",
+      detail: "Use camber for loaded tire contact, toe for response, and caster for self-centering.",
+      items: [
+        { label: "Camber front", value: alignment.camberFront },
+        { label: "Camber rear", value: alignment.camberRear },
+        { label: "Toe front", value: alignment.toeFront },
+        { label: "Toe rear", value: alignment.toeRear },
+        { label: "Front caster", value: alignment.caster }
+      ]
+    },
+    {
+      title: "Antiroll bars",
+      detail: "Softer front adds front grip; stiffer rear adds rotation. Rough surfaces need softer bars.",
+      items: [
+        { label: "ARB front", value: `${arbs.front}` },
+        { label: "ARB rear", value: `${arbs.rear}` }
+      ]
+    },
+    {
+      title: "Springs",
+      detail: "Spring rates are generated from weight, front distribution, class, mode, tire grip, and drivetrain.",
+      items: [
+        { label: "Spring front", value: `${springFront} lb/in` },
+        { label: "Spring rear", value: `${springRear} lb/in` },
+        { label: "Ride height front", value: rideHeight.front },
+        { label: "Ride height rear", value: rideHeight.rear }
+      ]
+    },
+    {
+      title: "Damping",
+      detail: "Rebound controls body return; bump controls impact absorption and how sharply weight transfers.",
+      items: [
+        { label: "Rebound front", value: `${reboundFront}` },
+        { label: "Rebound rear", value: `${reboundRear}` },
+        { label: "Bump front", value: `${compressionFront}` },
+        { label: "Bump rear", value: `${compressionRear}` }
+      ]
+    },
+    {
+      title: "Aero",
+      detail: "Treat these as percentages of available downforce. Add rear for stability and front for high-speed rotation.",
+      items: [
+        { label: "Downforce front", value: `${aeroFront}%` },
+        { label: "Downforce rear", value: `${aeroRear}%` }
+      ]
+    },
+    {
+      title: "Brake",
+      detail: "Balance controls which axle does more braking work. Move forward for stability, rearward for rotation.",
+      items: [
+        { label: "Braking balance", value: brakes.balance }
+      ]
+    },
+    {
+      title: "Braking force",
+      detail: "Pressure controls total braking force. Lower it if lockups are abrupt; raise it if the pedal feels weak.",
+      items: [
+        { label: "Pressure", value: brakes.pressure }
+      ]
+    },
+    {
+      title: "Differential",
+      detail: "Accel affects throttle behavior, decel affects entry and braking, center balance applies only to AWD.",
+      items: [
+        { label: "Front accel", value: diff.frontAccel },
+        { label: "Front decel", value: diff.frontDecel },
+        { label: "Rear accel", value: diff.rearAccel },
+        { label: "Rear decel", value: diff.rearDecel },
+        { label: "Center balance", value: diff.center }
+      ]
+    }
+  ];
+}
+
 function differentialBaseline(mode: ModeId, drivetrain: Drivetrain) {
   if (drivetrain === "FWD") {
     return mode === "street"
@@ -108,6 +498,144 @@ function differentialBaseline(mode: ModeId, drivetrain: Drivetrain) {
   }
 
   return ["Front accel 18-30%", "Rear accel 45-65%", "Center balance 65-75% rear."];
+}
+
+export function getClassOptimization(mode: ModeId, performanceClass: PerformanceClass) {
+  if (mode === "street") {
+    const streetByClass: Record<PerformanceClass, ReturnType<typeof classOptimizationResult>> = {
+      D: classOptimizationResult(
+        performanceClass,
+        ["street"],
+        "Street tires keep PI available for weight reduction, brakes, and usable power. Sport tires are only worth it if the car is already grip-limited.",
+        ["Weight reduction before power", "Street or stock-width tires", "Brakes and ARBs if available"],
+        "Keep the stock drivetrain unless traction is the only thing holding the car back.",
+        "Stock or Sport transmission is usually enough; spend PI on tire/chassis first.",
+        "Do not overbuild the car out of class chasing compound upgrades."
+      ),
+      C: classOptimizationResult(
+        performanceClass,
+        ["street", "sport"],
+        "Street or Sport tires are the efficient window. Use Sport when the route is technical or the car is under-tired.",
+        ["Moderate tire compound", "Weight and brakes", "Small power gains after grip"],
+        "Stock drivetrain is usually best. AWD swaps are often too expensive here.",
+        "Sport transmission only if final drive tuning solves a route problem.",
+        "Tire width can cost more than it gives back on light C-class cars."
+      ),
+      B: classOptimizationResult(
+        performanceClass,
+        ["sport"],
+        "Sport tires are the street baseline for B class: enough grip to brake and rotate without spending semi-slick PI.",
+        ["Sport tires", "Adjustable ARBs", "Weight reduction", "Power only after grip"],
+        "RWD/FWD can stay stock. AWD is route-specific and often too PI-expensive unless the car already has it.",
+        "Sport transmission is a good PI-efficient choice because final drive tuning is usually enough.",
+        "Avoid jumping to semi-slicks unless the car is extremely light or the route is all corners."
+      ),
+      A: classOptimizationResult(
+        performanceClass,
+        ["semi-slick"],
+        "Semi-slicks are the clean A-class street target when PI allows. Sport tires still work when you need more budget for power.",
+        ["Semi-slicks or strong Sport tires", "Brake and suspension adjustability", "Balanced power-to-weight"],
+        "RWD keeps the car lighter; AWD becomes useful for high-power or tight exit-heavy routes.",
+        "Sport transmission can still be enough, but Race transmission helps cars with awkward stock ratios.",
+        "If semi-slicks force a weak engine, drop to Sport and spend PI on weight/power."
+      ),
+      S1: classOptimizationResult(
+        performanceClass,
+        ["semi-slick", "slick"],
+        "Semi-slicks are efficient for many S1 street builds; slicks suit dry grip builds with enough PI and power.",
+        ["Semi-slick or slick compound", "Full aero where useful", "Tire width before huge power"],
+        "AWD is strong for launch and exits; RWD works on balanced cars with enough rear tire.",
+        "Race transmission is worth it when the engine powerband or route needs tighter gears.",
+        "S1 is where aero, gearing, and diff tuning start beating raw horsepower."
+      ),
+      S2: classOptimizationResult(
+        performanceClass,
+        ["slick", "semi-slick"],
+        "Slicks are the dry asphalt baseline; semi-slicks can be faster when PI is tight or the route is mixed/wet.",
+        ["Slicks or high-end semi-slicks", "Aero balance", "Wide tires", "Stable braking"],
+        "AWD is usually the practical meta unless the chassis has exceptional RWD traction.",
+        "Race transmission and differential are expected; tune for route speed instead of max speed.",
+        "Do not add power until braking and corner-exit stability are solved."
+      ),
+      R: classOptimizationResult(
+        performanceClass,
+        ["slick"],
+        "Slicks are the expected R-class street/track compound. Semi-slicks are a compromise only for mixed conditions or unusual PI constraints.",
+        ["Slicks", "Full aero", "Wide tires", "Race brakes", "Precision diff and gearing"],
+        "AWD favors deployable power; RWD needs careful aero and rear tire support.",
+        "Race transmission is mandatory for serious R-class work.",
+        "R class rewards stability and repeatability more than peak horsepower."
+      )
+    };
+
+    return streetByClass[performanceClass];
+  }
+
+  if (mode === "rally") {
+    return classOptimizationResult(
+      performanceClass,
+      performanceClass === "D" || performanceClass === "C" ? ["rally", "street"] : ["rally"],
+      performanceClass === "D" || performanceClass === "C"
+        ? "Rally tires are ideal if available; street tires can survive low-class mixed routes when PI is extremely tight."
+        : "Rally tires are the default for dirt and mixed-surface racing across competitive classes.",
+      ["Rally tires", "AWD or factory AWD", "Short final drive", "Suspension travel before power"],
+      "AWD is the baseline because loose exits need drive from both axles.",
+      performanceClass === "B" || performanceClass === "A"
+        ? "Sport transmission can work if final drive is enough; Race transmission helps awkward gear spacing."
+        : "Use Race transmission when the car needs close gears for boost, crests, or high speed sections.",
+      "Avoid slicks on dirt. The raw grip does not overcome the surface and PI penalty."
+    );
+  }
+
+  if (mode === "offroad") {
+    return classOptimizationResult(
+      performanceClass,
+      ["offroad"],
+      "Offroad tires are the primary cross-country compound. Rally tires are only a mixed-route compromise.",
+      ["Offroad tires", "High ride height", "Suspension travel", "AWD", "Torque before top-end power"],
+      "AWD is the practical baseline for jumps, water, climbs, and rough exits.",
+      "Shorter gearing matters more than top speed unless the route has long open sections.",
+      "Spend PI on keeping the tires connected to the surface before chasing power."
+    );
+  }
+
+  const driftTires: TireType[] = performanceClass === "D" || performanceClass === "C"
+    ? ["street", "sport"]
+    : performanceClass === "B"
+      ? ["sport", "drift"]
+      : ["drift", "sport"];
+
+  return classOptimizationResult(
+    performanceClass,
+    driftTires,
+    performanceClass === "D" || performanceClass === "C"
+      ? "Lower classes usually drift better on street or sport tires because they do not have enough power for high-grip compounds."
+      : "Drift tires are the predictable default when power is high enough; Sport remains useful if drift tires feel too grippy.",
+    ["RWD", "Steering angle", "Usable torque", "Tire compound matched to wheel speed"],
+    "RWD is the clean default. AWD should be rear-biased if used for scoring or speed zones.",
+    "Sport transmission can be enough for lower power. Race transmission helps tune the exact drift gear and shift recovery.",
+    "If the car keeps straightening, reduce rear grip or lengthen/retune the active drift gear before adding more power."
+  );
+}
+
+function classOptimizationResult(
+  classKey: PerformanceClass,
+  recommendedTires: TireType[],
+  tireSummary: string,
+  upgradeFocus: string[],
+  drivetrainAdvice: string,
+  transmissionAdvice: string,
+  piAdvice: string
+) {
+  return {
+    classKey,
+    recommendedTires,
+    tireSummary,
+    upgradeFocus,
+    drivetrainAdvice,
+    transmissionAdvice,
+    piAdvice
+  };
 }
 
 function whyThisWorks(mode: ModeId, inputs: VehicleInputs, targetMin: number, targetMax: number) {
@@ -268,6 +796,9 @@ function issueFixes(mode: ModeId) {
 
 export function generateSetup(mode: ModeId, inputs: VehicleInputs): SetupRecommendation {
   const model = modeModel[mode];
+  const classOptimization = getClassOptimization(mode, inputs.performanceClass);
+  const springClassScalar = classSpringScalar[inputs.performanceClass];
+  const powerClassScalar = classPowerScalar[inputs.performanceClass];
   const weightLb = inputs.weightKg * KG_TO_LB;
   const frontShare = inputs.frontWeightPercent / 100;
   const rearShare = 1 - frontShare;
@@ -279,8 +810,8 @@ export function generateSetup(mode: ModeId, inputs: VehicleInputs): SetupRecomme
   const drivetrainFrontBias = inputs.drivetrain === "FWD" ? 1.05 : inputs.drivetrain === "AWD" ? 1.02 : 1;
   const drivetrainRearBias = inputs.drivetrain === "RWD" ? 1.03 : inputs.drivetrain === "AWD" ? 1.01 : 0.97;
 
-  const springFront = round(frontAxleLoad * model.spring * model.frontSpringBias * drivetrainFrontBias * clamp(gripFactor, 0.9, 1.12));
-  const springRear = round(rearAxleLoad * model.spring * model.rearSpringBias * drivetrainRearBias * clamp(gripFactor, 0.9, 1.12));
+  const springFront = round(frontAxleLoad * model.spring * model.frontSpringBias * drivetrainFrontBias * springClassScalar * clamp(gripFactor, 0.9, 1.12));
+  const springRear = round(rearAxleLoad * model.spring * model.rearSpringBias * drivetrainRearBias * springClassScalar * clamp(gripFactor, 0.9, 1.12));
   const reboundFront = dampingFromSpring(springFront, model.rebound);
   const reboundRear = dampingFromSpring(springRear, model.rebound);
   const compressionFront = dampingFromSpring(springFront, model.compression);
@@ -291,13 +822,26 @@ export function generateSetup(mode: ModeId, inputs: VehicleInputs): SetupRecomme
   const frontAero = 100 - rearAero;
   const weightPenalty = clamp((inputs.weightKg - 1450) / 1400, 0, 0.18);
   const [hpMinPer1000, hpMaxPer1000] = model.hpPer1000Lb;
-  const targetMin = round((hpMinPer1000 * (1 - weightPenalty) * weightLb) / 1000 / 10) * 10;
-  const targetMax = round((hpMaxPer1000 * (1 - weightPenalty * 0.8) * weightLb) / 1000 / 10) * 10;
+  const targetMin = round((hpMinPer1000 * (1 - weightPenalty) * powerClassScalar * weightLb) / 1000 / 10) * 10;
+  const targetMax = round((hpMaxPer1000 * (1 - weightPenalty * 0.8) * powerClassScalar * weightLb) / 1000 / 10) * 10;
   const gripIndex = round(clamp(gripFactor * 82 + widthFactor * 18, 70, 118));
   const rotationIndex = round(clamp(100 - inputs.frontWeightPercent + (inputs.drivetrain === "RWD" ? 12 : 3) + (mode === "drift" ? 18 : 0), 35, 92));
   const stabilityIndex = round(clamp(inputs.frontWeightPercent + rearAero * 0.45 + (inputs.drivetrain === "AWD" ? 12 : 4), 48, 96));
 
   return {
+    tuneCards: buildTuneCards({
+      aeroFront: frontAero,
+      aeroRear: rearAero,
+      compressionFront,
+      compressionRear,
+      drivetrain: inputs.drivetrain,
+      inputs,
+      mode,
+      reboundFront,
+      reboundRear,
+      springFront,
+      springRear
+    }),
     springFront,
     springRear,
     compressionFront,
@@ -309,6 +853,7 @@ export function generateSetup(mode: ModeId, inputs: VehicleInputs): SetupRecomme
     aeroBalance: `${frontAero}% front / ${rearAero}% rear`,
     aeroDetail: "Bias moves rearward as horsepower-per-weight increases because high-speed exits need more rear stability.",
     differential: differentialBaseline(mode, inputs.drivetrain),
+    classOptimization,
     guidance: tuningGuidance(mode, inputs),
     powerTarget: {
       min: targetMin,
